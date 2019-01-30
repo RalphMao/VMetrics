@@ -171,3 +171,91 @@ def eval_mAP(groundtruths, predictions, specific_iou_classes=None):
     return mAP, ap_dictionary
 
 
+def eval_aAP(groundtruths, predictions, specific_iou_classes=None):
+    gt_classes = sorted(groundtruths.keys())
+    n_classes = len(gt_classes)
+    sum_AP = 0.0
+    if specific_iou_classes is None:
+        specific_iou_classes = [] 
+    gt_counter_per_class = calc_gt_num(groundtruths)
+    gts = sum(gt_counter_per_class.values())
+    set_tags(groundtruths, 'used', False)
+
+    nd = len(predictions)
+    tp = [0] * nd # creates an array of zeros of size nd
+    fp = [0] * nd
+
+    for idx, prediction in enumerate(predictions):
+
+        min_overlap = MINOVERLAP
+        file_id = prediction["file_id"]
+        bb = prediction["bbox"]
+        class_name = prediction["class"]
+        if class_name in specific_iou_classes:
+            assert type(specific_iou_classes[class_name]) is float
+            min_overlap = specific_iou_classes[class_name]
+
+        # assign prediction to ground truth object if any
+        #     open ground-truth with that file_id
+        # gt_file = tmp_files_path + "/" + file_id + "_ground_truth.json"
+        # ground_truth_data = json.load(open(gt_file))
+        ovmax = -1
+        gt_match = -1
+        # load prediction bounding-box
+        for obj in groundtruths[class_name][file_id]:
+            # look for a class_name match
+            # if obj["class_name"] == class_name:
+            bbgt = obj["bbox"]
+            bi = [max(bb[0],bbgt[0]), max(bb[1],bbgt[1]), min(bb[2],bbgt[2]), min(bb[3],bbgt[3])]
+            iw = bi[2] - bi[0] + 1
+            ih = bi[3] - bi[1] + 1
+            if iw > 0 and ih > 0:
+                # compute overlap (IoU) = area of intersection / area of union
+                ua = (bb[2] - bb[0] + 1) * (bb[3] - bb[1] + 1) + (bbgt[2] - bbgt[0] + 1) * (bbgt[3] - bbgt[1] + 1) - iw * ih
+                ov = iw * ih / ua
+                if ov > ovmax:
+                    ovmax = ov
+                    gt_match = obj
+
+        if ovmax >= min_overlap:
+            if not gt_match['difficult']:
+                if not gt_match["used"]:
+                    # true positive
+                    tp[idx] = 1
+                    gt_match["used"] = True
+                else:
+                    # false positive (multiple detection)
+                    fp[idx] = 1
+            else:
+                # Ignore difficult instances
+                pass 
+        else:
+            # false positive
+            fp[idx] = 1
+
+    #print(tp)
+    # compute precision/recall
+    cumsum = 0
+    for idx, val in enumerate(fp):
+        fp[idx] += cumsum
+        cumsum += val
+    cumsum = 0
+    for idx, val in enumerate(tp):
+        tp[idx] += cumsum
+        cumsum += val
+    #print(tp)
+    rec = tp[:]
+    for idx, val in enumerate(tp):
+        rec[idx] = float(tp[idx]) / gts
+    #print(rec)
+    prec = tp[:]
+    for idx, val in enumerate(tp):
+        prec[idx] = float(tp[idx]) / (fp[idx] + tp[idx])
+    #print(prec)
+
+    ap, mrec, mprec = voc_ap(rec, prec)
+
+    del_tags(groundtruths, 'used')
+    return ap, mrec, mprec
+
+

@@ -91,3 +91,19 @@ def rcnn2pred(bboxes, scores, cls_inds):
     for class_name in predictions:
         predictions[class_name].sort(key=lambda x:x['confidence'], reverse=True)
     return predictions
+
+def rcnn2apred(bboxes, scores, cls_inds):
+    '''
+    This func is intended for eval_aAP
+    '''
+    predictions = []
+    for file_id in bboxes:
+        for idx in range(len(bboxes[file_id])):
+            class_name = int(cls_inds[file_id][idx])
+            bbox = bboxes[file_id][idx]
+            confidence = scores[file_id][idx]
+            predictions.append({"confidence":confidence, "file_id":file_id, "bbox":bbox, "class":class_name})
+
+    predictions.sort(key=lambda x:x['confidence'], reverse=True)
+    return predictions
+
