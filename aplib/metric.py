@@ -156,6 +156,11 @@ def eval_mAP(groundtruths, predictions, specific_iou_classes=None):
         rec = tp[:]
         for idx, val in enumerate(tp):
             rec[idx] = float(tp[idx]) / gt_counter_per_class[class_name]
+
+        fp_rate = fp[:]
+        for idx, val in enumerate(fp):
+            fp_rate[idx] = float(val) / gt_counter_per_class[class_name]
+
         #print(rec)
         prec = tp[:]
         for idx, val in enumerate(tp):
@@ -164,7 +169,7 @@ def eval_mAP(groundtruths, predictions, specific_iou_classes=None):
 
         ap, mrec, mprec = voc_ap(rec, prec)
         sum_AP += ap
-        ap_dictionary[class_name] = (ap, rec, prec)
+        ap_dictionary[class_name] = (ap, rec, prec, fp_rate)
 
     mAP = sum_AP / n_classes
     del_tags(groundtruths, 'used')
@@ -248,6 +253,10 @@ def eval_aAP(groundtruths, predictions, specific_iou_classes=None):
     for idx, val in enumerate(tp):
         rec[idx] = float(tp[idx]) / gts
     #print(rec)
+    fp_rate = fp[:]
+    for idx, val in enumerate(fp):
+        fp_rate[idx] = float(val) / gts
+
     prec = tp[:]
     for idx, val in enumerate(tp):
         prec[idx] = float(tp[idx]) / (fp[idx] + tp[idx])
@@ -256,6 +265,6 @@ def eval_aAP(groundtruths, predictions, specific_iou_classes=None):
     ap, mrec, mprec = voc_ap(rec, prec)
 
     del_tags(groundtruths, 'used')
-    return ap, mrec, mprec
+    return ap, mrec, mprec, fp_rate
 
 
