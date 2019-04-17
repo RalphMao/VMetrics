@@ -1,6 +1,7 @@
 
 import os
 import sys
+import numpy as np
 from collections import defaultdict
 
 def error(msg):
@@ -106,4 +107,18 @@ def rcnn2apred(bboxes, scores, cls_inds):
 
     predictions.sort(key=lambda x:x['confidence'], reverse=True)
     return predictions
+
+def overlap(bb1, bb2):
+    common_area = max(0, (min(bb2[2], bb1[2]) - max(bb2[0],bb1[0]))) * max(0, (min(bb2[3], bb1[3]) - max(bb2[1], bb1[1])))
+    total_area = (bb2[2]-bb2[0]) * (bb2[3]-bb2[1]) + (bb1[2]-bb1[0]) * (bb1[3]-bb1[1]) - common_area
+    return float(common_area) / total_area
+
+def filter_byconf(bboxes, scores, cls_inds, conf):
+    if hasattr(bboxes, 'keys'):
+        for frame in bboxes:
+            bboxes[frame], scores[frame], cls_inds[frame] = filter_byconf(bboxes[frame], scores[frame], cls_inds[frame], conf)
+        return bboxes, scores, cls_inds
+    else:
+        keep = filter(lambda x:scores[x] >= conf, np.arange(len(bboxes)))
+        return bboxes[keep], scores[keep], cls_inds[keep]
 
