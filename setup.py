@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='APLib',
+    name='VMetrics',
     author='Ralph Mao',
-    packages=['aplib'],
+    packages=['vmetrics'],
 )

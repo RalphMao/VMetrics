@@ -1,88 +1,17 @@
 import numpy as np
 import argparse
 import glob
-from collections import defaultdict
+import sys
+sys.path.insert(0, './')
 
-from aplib.kitti_helper import readKITTI, read_results
-from aplib.utils import overlap, filter_byconf
-from aplib import rcnn2gt, rcnn2pred, eval_mAP, eval_aAP, rcnn2apred
-
-IMAGENETVID_CLASSES = ('__background__', 'airplane', 'antelope', 'bear', 'bicycle',
-           'bird', 'bus', 'car', 'cattle',
-           'dog', 'domestic_cat', 'elephant', 'fox',
-           'giant_panda', 'hamster', 'horse', 'lion',
-           'lizard', 'monkey', 'motorcycle', 'rabbit',
-           'red_panda', 'sheep', 'snake', 'squirrel',
-           'tiger', 'train', 'turtle', 'watercraft',
-           'whale', 'zebra')
+from vmetrics.data_helper import readKITTI, read_results, IMAGENETVID_CLASSES
+from vmetrics.utils import filter_byconf, rcnn2gt, rcnn2pred, rcnn2apred
+from vmetrics.delay import calc_delay
+from vmetrics.ap import eval_mAP, eval_aAP
 
 def update_dict_with_prefix(dict1, dict2, prefix):
     for key in dict2:
         dict1[prefix + str(key)] = dict2[key]
-
-def merge_cls(cls_inds, merge_table):
-    for key in cls_inds:
-        cls_inds[key] = merge_table[cls_inds[key]]
-
-def calc_delay(bboxes_gt, scores_gt, cls_gt, track_ids, bboxes, scores, cls):
-    first_frame_pertrack = defaultdict(lambda: 1e9)
-    first_detect_pertrack = defaultdict(lambda: 1e9)
-    last_frame_pertrack = defaultdict(int)
-    class_pertrack = defaultdict(int)
-    size_pertrack = defaultdict(list)
-
-    frames = max(bboxes_gt.keys() + bboxes.keys())
-    results = [0] * 6
-    IOU_thresh = 0.5
-    for frame in range(frames):
-        for c, track_id, bbox in zip(cls_gt[frame], track_ids[frame], bboxes_gt[frame]):
-            h, w = (bbox[3] - bbox[1], bbox[2] - bbox[0])
-            shorter = min(h, w)
-            size_pertrack[track_id].append(shorter)
-            first_frame_pertrack[track_id] = min(first_frame_pertrack[track_id], frame)
-            last_frame_pertrack[track_id] = max(first_frame_pertrack[track_id], frame)
-            if class_pertrack[track_id] == 0:
-                class_pertrack[track_id] = c
-            else:
-                assert class_pertrack[track_id] == c, \
-                    "%d vs %d"%(class_pertrack[track_id], c)
-
-        num_gt = len(bboxes_gt[frame])
-        for bb, s, c in zip(bboxes[frame], scores[frame], cls[frame]):
-            max_overl = 0.0
-            track_id = -1
-            for id_gt in range(num_gt):
-                   
-                overl = overlap(bboxes_gt[frame][id_gt], bb)
-                c_gt = cls_gt[frame][id_gt]
-                if overl > max_overl and c == c_gt:
-                    max_overl = overl
-                    track_id = track_ids[frame][id_gt]
-            if max_overl > IOU_thresh:
-                first_detect_pertrack[track_id] = min(first_detect_pertrack[track_id], frame)
-
-    delays = []
-    classes = []
-    ids = []
-    first_frames = []
-    sizes = []
-    for track_id in first_frame_pertrack:
-        size = np.mean(size_pertrack[track_id][:30])
-        first_frame = first_frame_pertrack[track_id]
-        if track_id in first_detect_pertrack:
-            delay = first_detect_pertrack[track_id] - first_frame_pertrack[track_id]
-        else:
-            delay = last_frame_pertrack[track_id] - first_frame_pertrack[track_id]
-        delay = max(delay, 0)
-
-        assert delay >= 0
-        delays.append(delay)
-        classes.append(class_pertrack[track_id])
-        ids.append(track_id)
-        first_frames.append(first_frame_pertrack[track_id])
-        sizes.append(size)
-
-    return delays, classes, ids, first_frames, sizes
 
 def get_delays(res_files, gt_dir, conf):
     delays = []
@@ -133,12 +62,12 @@ def get_mAP(res_files, gt_dir):
     ap, rec, prec, fp_rate = eval_aAP(groundtruths, predictions_a)
     target_precs = [0.5, 0.6, 0.7, 0.8, 0.9]
     target_fps = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2]
-    confs = []
-    confs2 = []
+    confs_at_prec = []
+    confs_at_fp = []
     for target_prec in target_precs:
         idx = np.where(np.array(prec) < target_prec)[0][0]
         conf = predictions_a[idx]['confidence']
-        confs.append(conf)
+        confs_at_prec.append(conf)
     for target_fp in target_fps:
         idxs = np.where(np.array(fp_rate) > target_fp)[0]
         if len(idxs) > 0:
@@ -146,9 +75,9 @@ def get_mAP(res_files, gt_dir):
             conf = predictions_a[idx]['confidence']
         else:
             conf = 0
-        confs2.append(conf)
+        confs_at_fp.append(conf)
 
-    return mAP, confs, confs2
+    return mAP, confs_at_prec, confs_at_fp
 
 def get_mD(res_files, gt_dir, confs, choice='mean'):
     delays = []
@@ -208,7 +137,7 @@ if __name__ == "__main__":
     gt_tags = map(lambda x: x.split('/')[-1].split('.')[0], gt_tags)
     all_res_files = filter(lambda x: x.split('/')[-1].split('.')[0] in gt_tags, all_res_files)
     num_files = len(all_res_files)
-    print "Evaluated on %d sequences"%num_files
+    print "Evaluate mAP and AD on %d sequences"%num_files
 
     split_points = np.round(np.arange(args.fold+1).astype('f') / (args.fold) * num_files).astype('i')
 
@@ -218,7 +147,6 @@ if __name__ == "__main__":
         res_files = all_res_files[split_points[fold]:split_points[fold+1]]
         mAP, _, confs = get_mAP(res_files, args.gt_dir)
         print "mAP:", mAP
-        choice = 'clipmax'
-        delays, mD = get_mD(res_files, args.gt_dir, confs, choice=choice)
+        delays, mD = get_mD(res_files, args.gt_dir, confs, choice='clipmax')
         print "Delays:", delays
         print "mD:", mD

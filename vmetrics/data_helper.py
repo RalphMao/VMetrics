@@ -17,6 +17,12 @@ def read_results(filename):
         cls_inds[frame_id] = np.array(cls_inds[frame_id])
     return bboxes, scores, cls_inds
 
+def write_results(filename, bboxes, scores, cls_inds):
+    with open(filename, 'w') as f:
+        for idx in bboxes:
+            for bbox, score, cls in zip(bboxes[idx], scores[idx], cls_inds[idx]):
+                f.write('%d %d %f %d %d %d %d\n'%((idx, cls, score)+tuple(bbox)))
+
 def writeKITTI(filename, bboxes, scores, cls_inds, track_ids=None, classes=None):
     f = open(filename, 'w')
     num_frames = len(bboxes)
@@ -73,4 +79,12 @@ def readKITTI(filename, with_extra=False, classes=None):
     else:
         return bboxes, scores, cls_inds
     
+IMAGENETVID_CLASSES = ('__background__', 'airplane', 'antelope', 'bear', 'bicycle',
+           'bird', 'bus', 'car', 'cattle',
+           'dog', 'domestic_cat', 'elephant', 'fox',
+           'giant_panda', 'hamster', 'horse', 'lion',
+           'lizard', 'monkey', 'motorcycle', 'rabbit',
+           'red_panda', 'sheep', 'snake', 'squirrel',
+           'tiger', 'train', 'turtle', 'watercraft',
+           'whale', 'zebra')
 
