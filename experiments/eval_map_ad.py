@@ -103,8 +103,6 @@ def get_mD(res_files, gt_dir, confs, choice='mean'):
     print "mD for small:", eval_delay(small_delays, choice='harmean')
     print "mD for med:  ", eval_delay(med_delays, choice='harmean')
     print "mD for large:", eval_delay(large_delays, choice='harmean')
-    print "Nonfirst Delays:", nonfirst_delays
-    print "Nonfirst frames AD:", eval_delay(nonfirst_delays, choice='harmean')
 
     for idx, cls in enumerate(targeted_cls):
         print "%10s AD:"%(IMAGENETVID_CLASSES[cls]), eval_delay(delays_per_classes[idx], choice='harmean')
@@ -148,5 +146,4 @@ if __name__ == "__main__":
         mAP, _, confs = get_mAP(res_files, args.gt_dir)
         print "mAP:", mAP
         delays, mD = get_mD(res_files, args.gt_dir, confs, choice='clipmax')
-        print "Delays:", delays
         print "mD:", mD
