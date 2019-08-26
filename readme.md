@@ -1,6 +1,6 @@
 # VMetrics
 
-This repo provides the evaluation codes used in our ICCV 2019 paper [A Delay Metric for Video Object Detection: What Average Precision Fails to Tell](), including:
+This repo provides the evaluation codes used in our ICCV 2019 paper [A Delay Metric for Video Object Detection: What Average Precision Fails to Tell](https://arxiv.org/abs/1908.06368), including:
 
 - Mean Average Precision (mAP)
 - Average Delay (AD)
