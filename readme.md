@@ -8,11 +8,7 @@ This repo provides the evaluation codes used in our ICCV 2019 paper [A Delay Met
 
 ### Prepare the data
 
-Download the groundtruth annotations and the sample detector outputs by running the following command:
-
-```sh
-$ bash prep_data.sh
-```
+Download the groundtruth annotations and the sample detector outputs from [Google Drive](https://drive.google.com/drive/folders/1BeHcW9OdRNxdph_fpEBIc9LG8Q6ZmTSt?usp=sharing).
 
 The groundtruth annotations of VIDT are stored in KITTI-format due to its simplicity and io-efficiency.
 
